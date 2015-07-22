@@ -24,19 +24,24 @@ class PDO extends DB
     {
         // We don't store the sha1 as binary values because otherwise we could not use
         // proper XML test data
-        $sql = "SELECT IF(SHA1(?) = {$this->tokenColumn}, 1, -1) AS token_match " .
+        $sql = "SELECT IF(SHA1(?) = {$this->tokenColumn}, 1, -1) AS token_match,$this->expiresColumn as expires" .
             "FROM {$this->tableName} WHERE {$this->credentialColumn} = ? " .
-            "AND {$this->persistentTokenColumn} = SHA1(?) AND {$this->expiresColumn} > NOW() LIMIT 1";
+            "AND {$this->persistentTokenColumn} = SHA1(?)  LIMIT 1";
 
         $query = $this->connection->prepare($sql);
         $query->execute(array($token, $credential, $persistentToken));
 
-        $result = $query->fetchColumn();
+//        $result = $query->fetchColumn();
+        $result = $query->fetchAll();
 
         if (!$result) {
             return self::TRIPLET_NOT_FOUND;
-        } elseif ($result == 1) {
+        } elseif ($result[0]['token_match'] == 1 && strtotime($result[0]['expires'])>time()) {
             return self::TRIPLET_FOUND;
+        }
+        else
+        {
+            return self::TRIPLET_NOT_FOUND;
         }
 
         return self::TRIPLET_INVALID;
